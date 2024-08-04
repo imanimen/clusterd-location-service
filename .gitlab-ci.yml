@@ -2,3 +2,29 @@ stages:
   - build
   - push
   - deploy
+
+variables:
+  CONTAINER_NAME: "loadtest"
+
+before_script:
+  - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY || (echo "Failed to log into the registry" && exit 1)
+
+build:
+  stage: build
+  script:
+    - docker build --tag="$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+
+push:
+  stage: push
+  script:
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+
+deploy:
+  stage: deploy
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - docker stop $CONTAINER_NAME || true
+    - docker rm $CONTAINER_NAME || true
+    - docker run -d --name $CONTAINER_NAME -p 8080:8080 "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+  only:
+    - main
